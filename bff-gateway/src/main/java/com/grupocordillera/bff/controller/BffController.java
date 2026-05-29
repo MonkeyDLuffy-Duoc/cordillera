@@ -163,6 +163,97 @@ public class BffController {
         }
     }
 
+    @PutMapping("/metas/{id}")
+    public ResponseEntity<?> updateMeta(@PathVariable Long id, @RequestBody Map<String, Object> metaRequest, HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden editar metas.");
+        }
+        
+        try {
+            org.springframework.http.HttpEntity<Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(metaRequest);
+            ResponseEntity<?> response = restTemplate.exchange(
+                "http://service-metas/api/metas/" + id,
+                org.springframework.http.HttpMethod.PUT,
+                entity,
+                Object.class
+            );
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error en BFF al actualizar la meta: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/metas/{id}")
+    public ResponseEntity<?> deleteMeta(@PathVariable Long id, HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden eliminar metas.");
+        }
+        
+        try {
+            ResponseEntity<?> response = restTemplate.exchange(
+                "http://service-metas/api/metas/" + id,
+                org.springframework.http.HttpMethod.DELETE,
+                null,
+                Void.class
+            );
+            return ResponseEntity.status(response.getStatusCode()).build();
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error en BFF al eliminar la meta: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/usuarios")
+    public ResponseEntity<?> getAllUsuarios(HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede gestionar usuarios.");
+        }
+        try {
+            List<?> usuarios = restTemplate.getForObject("http://service-areas/api/usuarios", List.class);
+            return ResponseEntity.ok(usuarios);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al obtener usuarios: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/usuarios")
+    public ResponseEntity<?> createUsuario(@RequestBody Map<String, Object> userRequest, HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede crear usuarios.");
+        }
+        try {
+            ResponseEntity<?> response = restTemplate.postForEntity("http://service-areas/api/usuarios", userRequest, Object.class);
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al crear usuario: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/usuarios/{username}")
+    public ResponseEntity<?> deleteUsuario(@PathVariable String username, HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede eliminar usuarios.");
+        }
+        try {
+            restTemplate.delete("http://service-areas/api/usuarios/" + username);
+            return ResponseEntity.ok().body("{\"message\": \"Usuario eliminado con éxito.\"}");
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al eliminar usuario: " + e.getMessage());
+        }
+    }
+
     private String complianceStatus(double compliance) {
         if (compliance >= 95.0) {
             return "CUMPLIDA";
