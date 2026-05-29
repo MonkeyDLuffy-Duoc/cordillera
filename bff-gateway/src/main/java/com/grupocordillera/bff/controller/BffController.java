@@ -1,5 +1,7 @@
 package com.grupocordillera.bff.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +15,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/bff")
 public class BffController {
 
+    private static final Logger log = LoggerFactory.getLogger(BffController.class);
+
     @Autowired
     private RestTemplate restTemplate;
 
@@ -22,6 +26,9 @@ public class BffController {
         String role = (String) request.getAttribute("role");
         Long areaId = (Long) request.getAttribute("areaId");
         Long equipoId = (Long) request.getAttribute("equipoId");
+
+        log.info("BFF orquestando consolidado de Dashboard para @{} [Rol: {}, Área: {}, Equipo: {}]", 
+                 username, role, areaId != null ? areaId : "Global", equipoId != null ? equipoId : "Global");
 
         try {
             // 1. Inter-service calls to pull raw data from microservices
@@ -138,9 +145,11 @@ public class BffController {
             dashboard.put("metasReporte", dashboardMetas);
             dashboard.put("medicionesHistoricas", allMediciones);
 
+            log.info("BFF consolidó con éxito el Dashboard para @{}.", username);
             return ResponseEntity.ok(dashboard);
 
         } catch (Exception e) {
+            log.error("Error en BFF al consolidar el Dashboard para @{}: {}", username, e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body("Error en BFF al consolidar el Dashboard: " + e.getMessage());
         }
@@ -148,25 +157,36 @@ public class BffController {
 
     @PostMapping("/metas")
     public ResponseEntity<?> createMeta(@RequestBody Map<String, Object> metaRequest, HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para CREAR meta: {}", username, role, metaRequest);
+
         if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
+            log.warn("BFF denegó creación de meta a @{} [Rol: {}]: Permisos insuficientes.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden crear metas.");
         }
         
         try {
             ResponseEntity<?> response = restTemplate.postForEntity("http://service-metas/api/metas", metaRequest, Object.class);
+            log.info("BFF redirigió creación de meta con éxito. Status: {}", response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Fallo en servicio metas al crear: {}", e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
+            log.error("Error en BFF al crear meta: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error en BFF al crear la meta: " + e.getMessage());
         }
     }
 
     @PutMapping("/metas/{id}")
     public ResponseEntity<?> updateMeta(@PathVariable Long id, @RequestBody Map<String, Object> metaRequest, HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para EDITAR meta ID {}: {}", username, role, id, metaRequest);
+
         if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
+            log.warn("BFF denegó edición de meta a @{} [Rol: {}]: Permisos insuficientes.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden editar metas.");
         }
         
@@ -178,18 +198,25 @@ public class BffController {
                 entity,
                 Object.class
             );
+            log.info("BFF redirigió edición de meta ID {} con éxito. Status: {}", id, response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Fallo en servicio metas al editar ID {}: {}", id, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
+            log.error("Error en BFF al actualizar meta ID {}: {}", id, e.getMessage());
             return ResponseEntity.status(500).body("Error en BFF al actualizar la meta: " + e.getMessage());
         }
     }
 
     @DeleteMapping("/metas/{id}")
     public ResponseEntity<?> deleteMeta(@PathVariable Long id, HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para ELIMINAR meta ID {}", username, role, id);
+
         if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
+            log.warn("BFF denegó eliminación de meta a @{} [Rol: {}]: Permisos insuficientes.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden eliminar metas.");
         }
         
@@ -200,48 +227,70 @@ public class BffController {
                 null,
                 Void.class
             );
+            log.info("BFF redirigió eliminación de meta ID {} con éxito. Status: {}", id, response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).build();
         } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Fallo en servicio metas al eliminar ID {}: {}", id, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
+            log.error("Error en BFF al eliminar meta ID {}: {}", id, e.getMessage());
             return ResponseEntity.status(500).body("Error en BFF al eliminar la meta: " + e.getMessage());
         }
     }
 
     @GetMapping("/usuarios")
     public ResponseEntity<?> getAllUsuarios(HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para LISTAR usuarios MySQL.", username, role);
+
         if (!"ADMIN".equals(role)) {
+            log.warn("BFF denegó listado de usuarios a @{} [Rol: {}]: Requiere ADMIN.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede gestionar usuarios.");
         }
         try {
             List<?> usuarios = restTemplate.getForObject("http://service-areas/api/usuarios", List.class);
+            log.info("BFF obtuvo exitosamente la lista de usuarios. Total: {}", usuarios.size());
             return ResponseEntity.ok(usuarios);
         } catch (Exception e) {
+            log.error("Error en BFF al listar usuarios: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error al obtener usuarios: " + e.getMessage());
         }
     }
 
     @PostMapping("/usuarios")
     public ResponseEntity<?> createUsuario(@RequestBody Map<String, Object> userRequest, HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para CREAR nuevo usuario: {}", 
+                 username, role, userRequest.get("username"));
+
         if (!"ADMIN".equals(role)) {
+            log.warn("BFF denegó creación de usuario a @{} [Rol: {}]: Requiere ADMIN.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede crear usuarios.");
         }
         try {
             ResponseEntity<?> response = restTemplate.postForEntity("http://service-areas/api/usuarios", userRequest, Object.class);
+            log.info("BFF redirigió registro de usuario con éxito. Status: {}", response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Fallo en servicio áreas al crear usuario: {}", e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
+            log.error("Error en BFF al crear usuario: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error al crear usuario: " + e.getMessage());
         }
     }
 
     @PutMapping("/usuarios/{username}")
     public ResponseEntity<?> updateUsuario(@PathVariable String username, @RequestBody Map<String, Object> userRequest, HttpServletRequest request) {
+        String bffAdmin = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para EDITAR usuario @{}: {}", 
+                 bffAdmin, role, username, userRequest);
+
         if (!"ADMIN".equals(role)) {
+            log.warn("BFF denegó edición de usuario a @{} [Rol: {}]: Requiere ADMIN.", bffAdmin, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede editar usuarios.");
         }
         try {
@@ -252,26 +301,36 @@ public class BffController {
                 entity,
                 Object.class
             );
+            log.info("BFF redirigió edición de usuario @{} con éxito. Status: {}", username, response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Fallo en servicio áreas al actualizar usuario @{}: {}", username, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
+            log.error("Error en BFF al actualizar usuario @{}: {}", username, e.getMessage());
             return ResponseEntity.status(500).body("Error al actualizar usuario: " + e.getMessage());
         }
     }
 
     @DeleteMapping("/usuarios/{username}")
     public ResponseEntity<?> deleteUsuario(@PathVariable String username, HttpServletRequest request) {
+        String bffAdmin = (String) request.getAttribute("username");
         String role = (String) request.getAttribute("role");
+        log.info("BFF recibiendo petición de @{} [Rol: {}] para ELIMINAR usuario @{}", bffAdmin, role, username);
+
         if (!"ADMIN".equals(role)) {
+            log.warn("BFF denegó eliminación de usuario a @{} [Rol: {}]: Requiere ADMIN.", bffAdmin, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede eliminar usuarios.");
         }
         try {
             restTemplate.delete("http://service-areas/api/usuarios/" + username);
+            log.info("BFF redirigió eliminación de usuario @{} con éxito.", username);
             return ResponseEntity.ok().body("{\"message\": \"Usuario eliminado con éxito.\"}");
         } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.warn("Fallo en servicio áreas al eliminar usuario @{}: {}", username, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
+            log.error("Error en BFF al eliminar usuario @{}: {}", username, e.getMessage());
             return ResponseEntity.status(500).body("Error al eliminar usuario: " + e.getMessage());
         }
     }
