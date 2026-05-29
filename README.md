@@ -126,4 +126,4 @@ Este repositorio sigue estrictamente la estrategia de ramificación **Git Flow**
 
 *   **`main`**: Código productivo y estable (Lanzamiento v1.0.0 dockerizado).
 *   **`desarrollo`**: Rama de integración continua y estabilización.
-*   **Ramas `feature/*`**: Ramas de características independientes utilizadas para el desarrollo de cada microservicio, frontend, base de datos MySQL, logs y resiliencia, las cuales fueron fusionadas sin avance rápido (`--no-ff`) para mantener un historial gráfico auditable impecable.
+*   **Ramas `feature/*`**: Ramas de características independientes utilizadas para el desarrollo de cada microservicio, frontend, base de datos MySQL, logs y resiliencia, las cuales fueron fusionadas sin avance rápido (`--no-ff`).
