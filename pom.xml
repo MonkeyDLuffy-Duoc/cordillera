@@ -28,6 +28,7 @@
         <module>infraestructura/eureka-server</module>
         <module>infraestructura/admin-server</module>
         <module>microservices/service-areas</module>
+        <module>microservices/service-kpis</module>
     </modules>
 
     <dependencyManagement>
