@@ -30,6 +30,7 @@
         <module>microservices/service-areas</module>
         <module>microservices/service-kpis</module>
         <module>microservices/service-metas</module>
+        <module>bff-gateway</module>
     </modules>
 
     <dependencyManagement>
