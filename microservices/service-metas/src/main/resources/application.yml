@@ -1,3 +1,7 @@
+logging:
+  file:
+    name: logs/service-metas.log
+
 server:
   port: 8083
 

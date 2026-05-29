@@ -1,3 +1,7 @@
+logging:
+  file:
+    name: logs/service-kpis.log
+
 server:
   port: 8082
 

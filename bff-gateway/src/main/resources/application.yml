@@ -1,3 +1,7 @@
+logging:
+  file:
+    name: logs/bff-gateway.log
+
 server:
   port: 8080
 

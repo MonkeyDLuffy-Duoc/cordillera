@@ -1,3 +1,7 @@
+logging:
+  file:
+    name: logs/service-areas.log
+
 server:
   port: 8081
 
