@@ -30,14 +30,38 @@ public class BffController {
         log.info("BFF orquestando consolidado de Dashboard para @{} [Rol: {}, Área: {}, Equipo: {}]", 
                  username, role, areaId != null ? areaId : "Global", equipoId != null ? equipoId : "Global");
 
+        // 1. Inter-service calls with individual try-catches (Fault Tolerance / Isolation)
+        List<Map<String, Object>> allAreas = new ArrayList<>();
+        List<Map<String, Object>> allEquipos = new ArrayList<>();
         try {
-            // 1. Inter-service calls to pull raw data from microservices
-            List<Map<String, Object>> allAreas = restTemplate.getForObject("http://service-areas/api/areas", List.class);
-            List<Map<String, Object>> allEquipos = restTemplate.getForObject("http://service-areas/api/equipos", List.class);
-            List<Map<String, Object>> allKpis = restTemplate.getForObject("http://service-kpis/api/kpis", List.class);
-            List<Map<String, Object>> allMediciones = restTemplate.getForObject("http://service-kpis/api/mediciones", List.class);
-            List<Map<String, Object>> allMetas = restTemplate.getForObject("http://service-metas/api/metas", List.class);
+            List<Map<String, Object>> areasData = restTemplate.getForObject("http://service-areas/api/areas", List.class);
+            List<Map<String, Object>> equiposData = restTemplate.getForObject("http://service-areas/api/equipos", List.class);
+            if (areasData != null) allAreas = areasData;
+            if (equiposData != null) allEquipos = equiposData;
+        } catch (Exception e) {
+            log.error("[ERR-BFF-501] Falla al consumir el microservicio de Estructura Organizativa (service-areas). Detalles: {}", e.getMessage());
+        }
 
+        List<Map<String, Object>> allKpis = new ArrayList<>();
+        List<Map<String, Object>> allMediciones = new ArrayList<>();
+        try {
+            List<Map<String, Object>> kpisData = restTemplate.getForObject("http://service-kpis/api/kpis", List.class);
+            List<Map<String, Object>> medicionesData = restTemplate.getForObject("http://service-kpis/api/mediciones", List.class);
+            if (kpisData != null) allKpis = kpisData;
+            if (medicionesData != null) allMediciones = medicionesData;
+        } catch (Exception e) {
+            log.error("[ERR-BFF-503] Falla al consumir el microservicio de Gestión de KPIs (service-kpis). Detalles: {}", e.getMessage());
+        }
+
+        List<Map<String, Object>> allMetas = new ArrayList<>();
+        try {
+            List<Map<String, Object>> metasData = restTemplate.getForObject("http://service-metas/api/metas", List.class);
+            if (metasData != null) allMetas = metasData;
+        } catch (Exception e) {
+            log.error("[ERR-BFF-502] Falla al consumir el microservicio de Metas Organizacionales (service-metas). Detalles: {}", e.getMessage());
+        }
+
+        try {
             // 2. Perform role-based filtering (Security by design at BFF layer)
             List<Map<String, Object>> filteredAreas = allAreas;
             List<Map<String, Object>> filteredEquipos = allEquipos;
@@ -106,9 +130,9 @@ public class BffController {
                 // Compliance logic: time averages are better if lower, standard percentages/finances are better if higher
                 String kpiNombre = matchedKpi.get("nombre").toString();
                 if (kpiNombre.contains("Tiempo")) {
-                    cumplimiento = valorActual <= valorObjetivo ? 100.0 : (valorObjetivo / valorActual) * 100.0;
+                    cumplimiento = valorActual <= valorObjetivo ? 100.0 : (valorActual == 0.0 ? 0.0 : (valorObjetivo / valorActual) * 100.0);
                 } else {
-                    cumplimiento = (valorActual / valorObjetivo) * 100.0;
+                    cumplimiento = valorObjetivo == 0.0 ? 0.0 : (valorActual / valorObjetivo) * 100.0;
                 }
                 // Cap compliance between 0 and 100 for display
                 cumplimiento = Math.max(0.0, Math.min(100.0, cumplimiento));
@@ -149,7 +173,7 @@ public class BffController {
             return ResponseEntity.ok(dashboard);
 
         } catch (Exception e) {
-            log.error("Error en BFF al consolidar el Dashboard para @{}: {}", username, e.getMessage());
+            log.error("[ERR-BFF-504] Error en BFF al consolidar el Dashboard para @{}: {}", username, e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body("Error en BFF al consolidar el Dashboard: " + e.getMessage());
         }
@@ -162,7 +186,7 @@ public class BffController {
         log.info("BFF recibiendo petición de @{} [Rol: {}] para CREAR meta: {}", username, role, metaRequest);
 
         if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
-            log.warn("BFF denegó creación de meta a @{} [Rol: {}]: Permisos insuficientes.", username, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó crear una meta sin permisos.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden crear metas.");
         }
         
@@ -171,10 +195,10 @@ public class BffController {
             log.info("BFF redirigió creación de meta con éxito. Status: {}", response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.warn("Fallo en servicio metas al crear: {}", e.getResponseBodyAsString());
+            log.warn("[ERR-VAL-400] Fallo en servicio metas al crear: {}", e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Error en BFF al crear meta: {}", e.getMessage());
+            log.error("[ERR-BFF-502] Error en BFF al crear meta: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error en BFF al crear la meta: " + e.getMessage());
         }
     }
@@ -186,7 +210,7 @@ public class BffController {
         log.info("BFF recibiendo petición de @{} [Rol: {}] para EDITAR meta ID {}: {}", username, role, id, metaRequest);
 
         if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
-            log.warn("BFF denegó edición de meta a @{} [Rol: {}]: Permisos insuficientes.", username, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó editar la meta ID {} sin permisos.", username, role, id);
             return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden editar metas.");
         }
         
@@ -201,10 +225,10 @@ public class BffController {
             log.info("BFF redirigió edición de meta ID {} con éxito. Status: {}", id, response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.warn("Fallo en servicio metas al editar ID {}: {}", id, e.getResponseBodyAsString());
+            log.warn("[ERR-VAL-400] Fallo en servicio metas al editar ID {}: {}", id, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Error en BFF al actualizar meta ID {}: {}", id, e.getMessage());
+            log.error("[ERR-BFF-502] Error en BFF al actualizar meta ID {}: {}", id, e.getMessage());
             return ResponseEntity.status(500).body("Error en BFF al actualizar la meta: " + e.getMessage());
         }
     }
@@ -216,7 +240,7 @@ public class BffController {
         log.info("BFF recibiendo petición de @{} [Rol: {}] para ELIMINAR meta ID {}", username, role, id);
 
         if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
-            log.warn("BFF denegó eliminación de meta a @{} [Rol: {}]: Permisos insuficientes.", username, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó eliminar la meta ID {} sin permisos.", username, role, id);
             return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden eliminar metas.");
         }
         
@@ -230,10 +254,10 @@ public class BffController {
             log.info("BFF redirigió eliminación de meta ID {} con éxito. Status: {}", id, response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).build();
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.warn("Fallo en servicio metas al eliminar ID {}: {}", id, e.getResponseBodyAsString());
+            log.warn("[ERR-VAL-400] Fallo en servicio metas al eliminar ID {}: {}", id, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Error en BFF al eliminar meta ID {}: {}", id, e.getMessage());
+            log.error("[ERR-BFF-502] Error en BFF al eliminar meta ID {}: {}", id, e.getMessage());
             return ResponseEntity.status(500).body("Error en BFF al eliminar la meta: " + e.getMessage());
         }
     }
@@ -245,7 +269,7 @@ public class BffController {
         log.info("BFF recibiendo petición de @{} [Rol: {}] para LISTAR usuarios MySQL.", username, role);
 
         if (!"ADMIN".equals(role)) {
-            log.warn("BFF denegó listado de usuarios a @{} [Rol: {}]: Requiere ADMIN.", username, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó listar usuarios sin ser ADMIN.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede gestionar usuarios.");
         }
         try {
@@ -253,7 +277,7 @@ public class BffController {
             log.info("BFF obtuvo exitosamente la lista de usuarios. Total: {}", usuarios.size());
             return ResponseEntity.ok(usuarios);
         } catch (Exception e) {
-            log.error("Error en BFF al listar usuarios: {}", e.getMessage());
+            log.error("[ERR-BFF-501] Error en BFF al listar usuarios: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error al obtener usuarios: " + e.getMessage());
         }
     }
@@ -266,7 +290,7 @@ public class BffController {
                  username, role, userRequest.get("username"));
 
         if (!"ADMIN".equals(role)) {
-            log.warn("BFF denegó creación de usuario a @{} [Rol: {}]: Requiere ADMIN.", username, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó crear un usuario sin ser ADMIN.", username, role);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede crear usuarios.");
         }
         try {
@@ -274,10 +298,10 @@ public class BffController {
             log.info("BFF redirigió registro de usuario con éxito. Status: {}", response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.warn("Fallo en servicio áreas al crear usuario: {}", e.getResponseBodyAsString());
+            log.warn("[ERR-VAL-400] Fallo en servicio áreas al crear usuario: {}", e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Error en BFF al crear usuario: {}", e.getMessage());
+            log.error("[ERR-BFF-501] Error en BFF al crear usuario: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error al crear usuario: " + e.getMessage());
         }
     }
@@ -290,7 +314,7 @@ public class BffController {
                  bffAdmin, role, username, userRequest);
 
         if (!"ADMIN".equals(role)) {
-            log.warn("BFF denegó edición de usuario a @{} [Rol: {}]: Requiere ADMIN.", bffAdmin, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó editar al usuario @{} sin ser ADMIN.", bffAdmin, role, username);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede editar usuarios.");
         }
         try {
@@ -304,10 +328,10 @@ public class BffController {
             log.info("BFF redirigió edición de usuario @{} con éxito. Status: {}", username, response.getStatusCode());
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.warn("Fallo en servicio áreas al actualizar usuario @{}: {}", username, e.getResponseBodyAsString());
+            log.warn("[ERR-VAL-400] Fallo en servicio áreas al actualizar usuario @{}: {}", username, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Error en BFF al actualizar usuario @{}: {}", username, e.getMessage());
+            log.error("[ERR-BFF-501] Error en BFF al actualizar usuario @{}: {}", username, e.getMessage());
             return ResponseEntity.status(500).body("Error al actualizar usuario: " + e.getMessage());
         }
     }
@@ -319,7 +343,7 @@ public class BffController {
         log.info("BFF recibiendo petición de @{} [Rol: {}] para ELIMINAR usuario @{}", bffAdmin, role, username);
 
         if (!"ADMIN".equals(role)) {
-            log.warn("BFF denegó eliminación de usuario a @{} [Rol: {}]: Requiere ADMIN.", bffAdmin, role);
+            log.warn("[ERR-SEC-403] Acceso denegado: El usuario @{} [Rol: {}] intentó eliminar al usuario @{} sin ser ADMIN.", bffAdmin, role, username);
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede eliminar usuarios.");
         }
         try {
@@ -327,10 +351,10 @@ public class BffController {
             log.info("BFF redirigió eliminación de usuario @{} con éxito.", username);
             return ResponseEntity.ok().body("{\"message\": \"Usuario eliminado con éxito.\"}");
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.warn("Fallo en servicio áreas al eliminar usuario @{}: {}", username, e.getResponseBodyAsString());
+            log.warn("[ERR-VAL-400] Fallo en servicio áreas al eliminar usuario @{}: {}", username, e.getResponseBodyAsString());
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Error en BFF al eliminar usuario @{}: {}", username, e.getMessage());
+            log.error("[ERR-BFF-501] Error en BFF al eliminar usuario @{}: {}", username, e.getMessage());
             return ResponseEntity.status(500).body("Error al eliminar usuario: " + e.getMessage());
         }
     }

@@ -48,7 +48,7 @@ public class KpiController {
 
         try {
             if (tipo == null || nombre == null || unidadMedida == null) {
-                log.warn("Fallo al crear KPI: Faltan campos requeridos en el RequestBody.");
+                log.warn("[ERR-VAL-400] Fallo al crear KPI: Faltan campos requeridos en el RequestBody.");
                 return ResponseEntity.badRequest().body("Los campos 'tipo', 'nombre' y 'unidadMedida' son requeridos.");
             }
 
@@ -60,10 +60,10 @@ public class KpiController {
                      savedKpi.getId(), savedKpi.getClass().getSimpleName());
             return ResponseEntity.status(HttpStatus.CREATED).body(savedKpi);
         } catch (IllegalArgumentException e) {
-            log.warn("Fallo al fabricar KPI: Parámetros inválidos para Factory Method. Detalles: {}", e.getMessage());
+            log.warn("[ERR-VAL-400] Fallo al fabricar KPI: Parámetros inválidos para Factory Method. Detalles: {}", e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            log.error("Excepción inesperada al crear KPI de tipo {}: {}", tipo, e.getMessage());
+            log.error("[ERR-DB-500] Excepción inesperada/base de datos al crear KPI de tipo {}: {}", tipo, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al crear el KPI: " + e.getMessage());
         }
     }
@@ -71,33 +71,53 @@ public class KpiController {
     @PutMapping("/{id}")
     public ResponseEntity<?> updateKpi(@PathVariable Long id, @RequestBody Map<String, String> request) {
         log.info("Petición recibida en service-kpis para actualizar KPI ID: {}", id);
-        return kpiRepository.findById(id)
-                .map(kpi -> {
-                    kpi.setNombre(request.get("nombre"));
-                    kpi.setDescripcion(request.get("descripcion"));
-                    kpi.setUnidadMedida(request.get("unidadMedida"));
-                    KPI updated = kpiRepository.save(kpi);
-                    log.info("KPI ID {} actualizado con éxito en MySQL (kpis_db).", id);
-                    return ResponseEntity.ok(updated);
-                })
-                .orElseGet(() -> {
-                    log.warn("Fallo al actualizar: KPI ID {} no encontrado.", id);
-                    return ResponseEntity.notFound().build();
-                });
+        try {
+            return kpiRepository.findById(id)
+                    .map(kpi -> {
+                        try {
+                            kpi.setNombre(request.get("nombre"));
+                            kpi.setDescripcion(request.get("descripcion"));
+                            kpi.setUnidadMedida(request.get("unidadMedida"));
+                            KPI updated = kpiRepository.save(kpi);
+                            log.info("KPI ID {} actualizado con éxito en MySQL (kpis_db).", id);
+                            return ResponseEntity.ok(updated);
+                        } catch (Exception e) {
+                            log.error("[ERR-DB-500] Error al guardar la actualización del KPI ID {} en base de datos: {}", id, e.getMessage(), e);
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .orElseGet(() -> {
+                        log.warn("[ERR-VAL-400] Fallo al actualizar: KPI ID {} no encontrado.", id);
+                        return ResponseEntity.notFound().build();
+                    });
+        } catch (Exception e) {
+            log.error("[ERR-DB-500] Error interno al buscar/actualizar el KPI ID {} en base de datos: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno al actualizar el KPI.");
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteKpi(@PathVariable Long id) {
+    public ResponseEntity<?> deleteKpi(@PathVariable Long id) {
         log.info("Petición recibida en service-kpis para eliminar KPI ID: {}", id);
-        return kpiRepository.findById(id)
-                .map(kpi -> {
-                    kpiRepository.delete(kpi);
-                    log.info("KPI ID {} eliminado exitosamente de MySQL (kpis_db).", id);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElseGet(() -> {
-                    log.warn("Fallo al eliminar: KPI ID {} no encontrado.", id);
-                    return ResponseEntity.notFound().build();
-                });
+        try {
+            return kpiRepository.findById(id)
+                    .map(kpi -> {
+                        try {
+                            kpiRepository.delete(kpi);
+                            log.info("KPI ID {} eliminado exitosamente de MySQL (kpis_db).", id);
+                            return ResponseEntity.ok().build();
+                        } catch (Exception e) {
+                            log.error("[ERR-DB-500] Error al eliminar el KPI ID {} de la base de datos: {}", id, e.getMessage(), e);
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .orElseGet(() -> {
+                        log.warn("[ERR-VAL-400] Fallo al eliminar: KPI ID {} no encontrado.", id);
+                        return ResponseEntity.notFound().build();
+                    });
+        } catch (Exception e) {
+            log.error("[ERR-DB-500] Error interno al buscar/eliminar el KPI ID {} en base de datos: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno al eliminar el KPI.");
+        }
     }
 }
