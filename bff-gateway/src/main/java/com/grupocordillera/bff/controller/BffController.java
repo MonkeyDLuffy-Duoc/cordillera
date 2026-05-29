@@ -146,6 +146,23 @@ public class BffController {
         }
     }
 
+    @PostMapping("/metas")
+    public ResponseEntity<?> createMeta(@RequestBody Map<String, Object> metaRequest, HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role) && !"JEFE_AREA".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo administradores o jefes de área pueden crear metas.");
+        }
+        
+        try {
+            ResponseEntity<?> response = restTemplate.postForEntity("http://service-metas/api/metas", metaRequest, Object.class);
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error en BFF al crear la meta: " + e.getMessage());
+        }
+    }
+
     private String complianceStatus(double compliance) {
         if (compliance >= 95.0) {
             return "CUMPLIDA";
