@@ -26,6 +26,7 @@
 
     <modules>
         <module>infraestructura/eureka-server</module>
+        <module>infraestructura/admin-server</module>
     </modules>
 
     <dependencyManagement>
