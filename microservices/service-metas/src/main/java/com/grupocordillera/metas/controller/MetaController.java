@@ -52,7 +52,7 @@ public class MetaController {
                  meta.getKpiId(), meta.getEquipoId(), meta.getValorObjetivo());
 
         if (meta.getKpiId() == null || meta.getEquipoId() == null || meta.getValorObjetivo() == null || meta.getFechaLimite() == null) {
-            log.warn("Fallo al crear Meta: Faltan campos requeridos en el RequestBody.");
+            log.warn("[ERR-VAL-400] Fallo al crear Meta: Faltan campos requeridos en el RequestBody.");
             return ResponseEntity.badRequest().body("Los campos 'kpiId', 'equipoId', 'valorObjetivo' y 'fechaLimite' son requeridos.");
         }
 
@@ -60,34 +60,44 @@ public class MetaController {
             // Dynamic check protected by Resilience4j Circuit Breaker
             kpiValidationService.validateKpiExists(meta.getKpiId());
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn("Validación fallida: El KPI ID {} no existe en la base de datos MySQL (kpis_db).", meta.getKpiId());
+            log.warn("[ERR-VAL-400] Validación fallida: El KPI ID {} no existe en la base de datos MySQL (kpis_db).", meta.getKpiId());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Error de validación: El KPI con ID " + meta.getKpiId() + " no existe.");
         } catch (Exception e) {
-            log.error("Excepción inesperada al validar la existencia del KPI: {}", e.getMessage());
+            log.error("[ERR-BFF-503] Excepción inesperada al validar la existencia del KPI: {}", e.getMessage());
         }
 
-        Meta savedMeta = metaRepository.save(meta);
-        log.info("Meta creada con éxito. Guardada con ID = {}, Estado inicial = {} en MySQL.", 
-                 savedMeta.getId(), savedMeta.getEstado());
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedMeta);
+        try {
+            Meta savedMeta = metaRepository.save(meta);
+            log.info("Meta creada con éxito. Guardada con ID = {}, Estado inicial = {} en MySQL.", 
+                     savedMeta.getId(), savedMeta.getEstado());
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedMeta);
+        } catch (Exception e) {
+            log.error("[ERR-DB-500] Error al guardar la meta en MySQL (metas_db). Detalles: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error de persistencia.");
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Meta> updateMeta(@PathVariable Long id, @RequestBody Meta metaDetails) {
+    public ResponseEntity<?> updateMeta(@PathVariable Long id, @RequestBody Meta metaDetails) {
         log.info("Petición de negocio recibida para actualizar Meta ID: {}", id);
         return metaRepository.findById(id)
                 .map(meta -> {
-                    meta.setValorObjetivo(metaDetails.getValorObjetivo());
-                    meta.setFechaLimite(metaDetails.getFechaLimite());
-                    meta.setEstado(metaDetails.getEstado());
-                    Meta updatedMeta = metaRepository.save(meta);
-                    log.info("Meta ID {} actualizada exitosamente en base de datos. Nuevo Estado = {}", 
-                             id, updatedMeta.getEstado());
-                    return ResponseEntity.ok(updatedMeta);
+                    try {
+                        meta.setValorObjetivo(metaDetails.getValorObjetivo());
+                        meta.setFechaLimite(metaDetails.getFechaLimite());
+                        meta.setEstado(metaDetails.getEstado());
+                        Meta updatedMeta = metaRepository.save(meta);
+                        log.info("Meta ID {} actualizada exitosamente en base de datos. Nuevo Estado = {}", 
+                                 id, updatedMeta.getEstado());
+                        return ResponseEntity.ok(updatedMeta);
+                    } catch (Exception e) {
+                        log.error("[ERR-DB-500] Error al actualizar la meta ID {} en MySQL. Detalles: {}", id, e.getMessage());
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al guardar en base de datos.");
+                    }
                 })
                 .orElseGet(() -> {
-                    log.warn("Intento de actualización fallido: Meta ID {} no existe.", id);
+                    log.warn("[ERR-VAL-400] Intento de actualización fallido: Meta ID {} no existe.", id);
                     return ResponseEntity.notFound().build();
                 });
     }
@@ -97,12 +107,17 @@ public class MetaController {
         log.info("Petición de negocio recibida para eliminar Meta ID: {}", id);
         return metaRepository.findById(id)
                 .map(meta -> {
-                    metaRepository.delete(meta);
-                    log.info("Meta ID {} eliminada con éxito de la base de datos MySQL (metas_db).", id);
-                    return ResponseEntity.ok().<Void>build();
+                    try {
+                        metaRepository.delete(meta);
+                        log.info("Meta ID {} eliminada con éxito de la base de datos MySQL (metas_db).", id);
+                        return ResponseEntity.ok().<Void>build();
+                    } catch (Exception e) {
+                        log.error("[ERR-DB-500] Error al eliminar la meta ID {} de MySQL. Detalles: {}", id, e.getMessage());
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).<Void>build();
+                    }
                 })
                 .orElseGet(() -> {
-                    log.warn("Intento de eliminación fallido: Meta ID {} no existe.", id);
+                    log.warn("[ERR-VAL-400] Intento de eliminación fallido: Meta ID {} no existe.", id);
                     return ResponseEntity.notFound().build();
                 });
     }

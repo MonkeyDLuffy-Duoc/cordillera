@@ -34,7 +34,7 @@ public class UsuarioController {
     @PostMapping
     public ResponseEntity<?> createUsuario(@RequestBody Usuario usuario) {
         if (usuario.getUsername() == null || usuario.getPassword() == null || usuario.getNombreCompleto() == null || usuario.getRole() == null) {
-            log.warn("Intento de creación fallido: Faltan campos requeridos en el RequestBody.");
+            log.warn("[ERR-VAL-400] Intento de creación fallido: Faltan campos requeridos en el RequestBody.");
             return ResponseEntity.badRequest().body("Los campos 'username', 'password', 'nombreCompleto' y 'role' son requeridos.");
         }
         
@@ -43,54 +43,79 @@ public class UsuarioController {
         log.info("Petición recibida en service-areas para crear usuario @{}", usuario.getUsername());
         
         if (usuarioRepository.existsById(usuario.getUsername())) {
-            log.warn("Intento de creación fallido: El nombre de usuario @{} ya está registrado.", usuario.getUsername());
+            log.warn("[ERR-VAL-400] Intento de creación fallido: El nombre de usuario @{} ya está registrado.", usuario.getUsername());
             return ResponseEntity.badRequest().body("El nombre de usuario ya está registrado.");
         }
 
-        Usuario savedUsuario = usuarioRepository.save(usuario);
-        log.info("Usuario @{} registrado exitosamente en MySQL (areas_db).", savedUsuario.getUsername());
-        return ResponseEntity.ok(savedUsuario);
+        try {
+            Usuario savedUsuario = usuarioRepository.save(usuario);
+            log.info("Usuario @{} registrado exitosamente en MySQL (areas_db).", savedUsuario.getUsername());
+            return ResponseEntity.ok(savedUsuario);
+        } catch (Exception e) {
+            log.error("[ERR-DB-500] Error al persistir el usuario @{} en base de datos: {}", usuario.getUsername(), e.getMessage(), e);
+            return ResponseEntity.status(500).body("Error al persistir el usuario en base de datos.");
+        }
     }
 
     @PutMapping("/{username}")
     public ResponseEntity<?> updateUsuario(@PathVariable String username, @RequestBody Usuario updatedUser) {
         log.info("Petición recibida en service-areas para actualizar usuario @{}", username);
-        return usuarioRepository.findById(username.toLowerCase().trim())
-                .map(existingUser -> {
-                    if (updatedUser.getNombreCompleto() != null) {
-                        existingUser.setNombreCompleto(updatedUser.getNombreCompleto());
-                    }
-                    if (updatedUser.getPassword() != null && !updatedUser.getPassword().trim().isEmpty()) {
-                        existingUser.setPassword(updatedUser.getPassword());
-                    }
-                    if (updatedUser.getRole() != null) {
-                        existingUser.setRole(updatedUser.getRole());
-                    }
-                    existingUser.setAreaId(updatedUser.getAreaId());
-                    existingUser.setEquipoId(updatedUser.getEquipoId());
+        try {
+            return usuarioRepository.findById(username.toLowerCase().trim())
+                    .map(existingUser -> {
+                        if (updatedUser.getNombreCompleto() != null) {
+                            existingUser.setNombreCompleto(updatedUser.getNombreCompleto());
+                        }
+                        if (updatedUser.getPassword() != null && !updatedUser.getPassword().trim().isEmpty()) {
+                            existingUser.setPassword(updatedUser.getPassword());
+                        }
+                        if (updatedUser.getRole() != null) {
+                            existingUser.setRole(updatedUser.getRole());
+                        }
+                        existingUser.setAreaId(updatedUser.getAreaId());
+                        existingUser.setEquipoId(updatedUser.getEquipoId());
 
-                    Usuario saved = usuarioRepository.save(existingUser);
-                    log.info("Usuario @{} actualizado exitosamente en base de datos. Rol = {}", username, saved.getRole());
-                    return ResponseEntity.ok(saved);
-                })
-                .orElseGet(() -> {
-                    log.warn("Fallo al actualizar: Usuario @{} no encontrado.", username);
-                    return ResponseEntity.notFound().build();
-                });
+                        try {
+                            Usuario saved = usuarioRepository.save(existingUser);
+                            log.info("Usuario @{} actualizado exitosamente en base de datos. Rol = {}", username, saved.getRole());
+                            return ResponseEntity.ok(saved);
+                        } catch (Exception e) {
+                            log.error("[ERR-DB-500] Error al guardar la actualización del usuario @{} en base de datos: {}", username, e.getMessage(), e);
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .orElseGet(() -> {
+                        log.warn("[ERR-VAL-400] Fallo al actualizar: Usuario @{} no encontrado.", username);
+                        return ResponseEntity.notFound().build();
+                    });
+        } catch (Exception e) {
+            log.error("[ERR-DB-500] Error interno al buscar/actualizar el usuario @{} en base de datos: {}", username, e.getMessage(), e);
+            return ResponseEntity.status(500).body("Error interno en base de datos al actualizar usuario.");
+        }
     }
 
     @DeleteMapping("/{username}")
-    public ResponseEntity<Void> deleteUsuario(@PathVariable String username) {
+    public ResponseEntity<?> deleteUsuario(@PathVariable String username) {
         log.info("Petición recibida en service-areas para eliminar usuario @{}", username);
-        return usuarioRepository.findById(username.toLowerCase().trim())
-                .map(usuario -> {
-                    usuarioRepository.delete(usuario);
-                    log.info("Usuario @{} eliminado exitosamente de MySQL (areas_db).", username);
-                    return ResponseEntity.ok().<Void>build();
-                })
-                .orElseGet(() -> {
-                    log.warn("Fallo al eliminar: Usuario @{} no encontrado.", username);
-                    return ResponseEntity.notFound().build();
-                });
+        try {
+            return usuarioRepository.findById(username.toLowerCase().trim())
+                    .map(usuario -> {
+                        try {
+                            usuarioRepository.delete(usuario);
+                            log.info("Usuario @{} eliminado exitosamente de MySQL (areas_db).", username);
+                            return ResponseEntity.ok().build();
+                        } catch (Exception e) {
+                            log.error("[ERR-DB-500] Error al eliminar el usuario @{} de la base de datos: {}", username, e.getMessage(), e);
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .orElseGet(() -> {
+                        log.warn("[ERR-VAL-400] Fallo al eliminar: Usuario @{} no encontrado.", username);
+                        return ResponseEntity.notFound().build();
+                    });
+        } catch (Exception e) {
+            log.error("[ERR-DB-500] Error interno al buscar/eliminar el usuario @{} en base de datos: {}", username, e.getMessage(), e);
+            return ResponseEntity.status(500).body("Error interno en base de datos al eliminar usuario.");
+        }
     }
 }

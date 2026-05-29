@@ -28,8 +28,8 @@ public class KpiValidationService {
 
     // Fallback method when service-kpis is offline or slow
     public boolean fallbackValidateKpi(Long kpiId, Throwable t) {
-        log.error("[Circuit Breaker: kpiService] Activado fallback por falla en comunicación con 'service-kpis'. Causa: {}", t.getMessage());
-        log.warn("[Circuit Breaker: kpiService] Degradación de servicio: Se autoriza la creación de la meta para KPI ID: {} bajo contingencia técnica.", kpiId);
+        log.error("[ERR-CB-503] Activado fallback por falla en comunicación con 'service-kpis'. Causa: {}", t.getMessage());
+        log.warn("[ERR-CB-503] Degradación de servicio: Se autoriza la creación de la meta para KPI ID: {} bajo contingencia técnica.", kpiId);
         return true;
     }
 }

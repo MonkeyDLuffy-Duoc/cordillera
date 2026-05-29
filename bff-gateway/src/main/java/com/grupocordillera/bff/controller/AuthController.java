@@ -30,7 +30,7 @@ public class AuthController {
         String password = request.get("password");
 
         if (username == null || password == null) {
-            log.warn("Fallo de login: Petición incompleta sin credenciales.");
+            log.warn("[ERR-VAL-400] Fallo de login: Petición incompleta sin credenciales.");
             return ResponseEntity.badRequest().body("Los campos 'username' y 'password' son requeridos.");
         }
 
@@ -43,24 +43,24 @@ public class AuthController {
         try {
             dbUser = restTemplate.getForObject(serviceAreasUrl, Map.class);
         } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
-            log.warn("Fallo de login: El usuario @{} no existe en MySQL (areas_db).", username);
+            log.warn("[ERR-SEC-401] Fallo de login: El usuario @{} no existe en MySQL (areas_db).", username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales incorrectas: El usuario no existe.");
         } catch (Exception e) {
-            log.error("Fallo de comunicación: No se pudo conectar con 'service-areas' para verificar a @{}. Motivo: {}", 
+            log.error("[ERR-BFF-501] Fallo de comunicación: No se pudo conectar con 'service-areas' para verificar a @{}. Motivo: {}", 
                       username, e.getMessage());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body("No se pudo conectar al servicio de autenticación en este momento. Inténtelo más tarde.");
         }
 
         if (dbUser == null) {
-            log.warn("Fallo de login: Registro de usuario @{} nulo en el servicio de áreas.", username);
+            log.warn("[ERR-SEC-401] Fallo de login: Registro de usuario @{} nulo en el servicio de áreas.", username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales incorrectas.");
         }
 
         // Validate plain password
         String dbPassword = (String) dbUser.get("password");
         if (!password.equals(dbPassword)) {
-            log.warn("Fallo de login: Contraseña incorrecta para el usuario @{}.", username);
+            log.warn("[ERR-SEC-401] Fallo de login: Contraseña incorrecta para el usuario @{}.", username);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales incorrectas: Contraseña inválida.");
         }
 
