@@ -44,6 +44,28 @@ public class UsuarioController {
         return ResponseEntity.ok(savedUsuario);
     }
 
+    @PutMapping("/{username}")
+    public ResponseEntity<?> updateUsuario(@PathVariable String username, @RequestBody Usuario updatedUser) {
+        return usuarioRepository.findById(username.toLowerCase().trim())
+                .map(existingUser -> {
+                    if (updatedUser.getNombreCompleto() != null) {
+                        existingUser.setNombreCompleto(updatedUser.getNombreCompleto());
+                    }
+                    if (updatedUser.getPassword() != null && !updatedUser.getPassword().trim().isEmpty()) {
+                        existingUser.setPassword(updatedUser.getPassword());
+                    }
+                    if (updatedUser.getRole() != null) {
+                        existingUser.setRole(updatedUser.getRole());
+                    }
+                    existingUser.setAreaId(updatedUser.getAreaId());
+                    existingUser.setEquipoId(updatedUser.getEquipoId());
+
+                    Usuario saved = usuarioRepository.save(existingUser);
+                    return ResponseEntity.ok(saved);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{username}")
     public ResponseEntity<Void> deleteUsuario(@PathVariable String username) {
         return usuarioRepository.findById(username.toLowerCase().trim())

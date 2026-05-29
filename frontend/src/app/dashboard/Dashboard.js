@@ -29,6 +29,7 @@ export class Dashboard extends Component {
       usuariosList: [],
       usuariosLoading: false,
       usuariosError: '',
+      editingUserUsername: null, // Track which user is currently being edited
       // Form state for creating a new User
       newUsrUsername: '',
       newUsrPassword: '',
@@ -118,6 +119,10 @@ export class Dashboard extends Component {
 
   handleCreateUsuario = async (e) => {
     e.preventDefault();
+    if (this.state.editingUserUsername) {
+      this.handleUpdateUsuario(e);
+      return;
+    }
     this.setState({ newUsrSubmitLoading: true, newUsrError: '', newUsrSuccess: '' });
     const token = localStorage.getItem('token');
 
@@ -150,6 +155,8 @@ export class Dashboard extends Component {
           newUsrPassword: '',
           newUsrNombreCompleto: '',
           newUsrRole: 'COLABORADOR',
+          newUsrAreaId: '',
+          newUsrEquipoId: '',
           newUsrSubmitLoading: false
         });
         this.fetchUsuarios();
@@ -159,6 +166,82 @@ export class Dashboard extends Component {
     } catch (err) {
       this.setState({ newUsrError: 'Error de red al intentar crear el usuario.', newUsrSubmitLoading: false });
     }
+  }
+
+  handleUpdateUsuario = async (e) => {
+    e.preventDefault();
+    this.setState({ newUsrSubmitLoading: true, newUsrError: '', newUsrSuccess: '' });
+    const token = localStorage.getItem('token');
+
+    const areaIdVal = this.state.newUsrAreaId ? parseInt(this.state.newUsrAreaId) : null;
+    const equipoIdVal = this.state.newUsrEquipoId ? parseInt(this.state.newUsrEquipoId) : null;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/bff/usuarios/${this.state.editingUserUsername}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: this.state.editingUserUsername,
+          password: this.state.newUsrPassword,
+          nombreCompleto: this.state.newUsrNombreCompleto,
+          role: this.state.newUsrRole,
+          areaId: areaIdVal,
+          equipoId: equipoIdVal
+        })
+      });
+
+      const data = await response.text();
+
+      if (response.ok) {
+        this.setState({
+          newUsrSuccess: '¡Usuario actualizado con éxito en MySQL!',
+          editingUserUsername: null,
+          newUsrUsername: '',
+          newUsrPassword: '',
+          newUsrNombreCompleto: '',
+          newUsrRole: 'COLABORADOR',
+          newUsrAreaId: '',
+          newUsrEquipoId: '',
+          newUsrSubmitLoading: false
+        });
+        this.fetchUsuarios();
+      } else {
+        this.setState({ newUsrError: data || 'Error al actualizar el usuario.', newUsrSubmitLoading: false });
+      }
+    } catch (err) {
+      this.setState({ newUsrError: 'Error de red al intentar actualizar el usuario.', newUsrSubmitLoading: false });
+    }
+  }
+
+  handleEditUsuarioClick = (user) => {
+    this.setState({
+      editingUserUsername: user.username,
+      newUsrUsername: user.username,
+      newUsrNombreCompleto: user.nombreCompleto,
+      newUsrPassword: '', // empty to keep original
+      newUsrRole: user.role,
+      newUsrAreaId: user.areaId || '',
+      newUsrEquipoId: user.equipoId || '',
+      newUsrSuccess: '',
+      newUsrError: ''
+    });
+  }
+
+  handleCancelEditUsuario = () => {
+    this.setState({
+      editingUserUsername: null,
+      newUsrUsername: '',
+      newUsrNombreCompleto: '',
+      newUsrPassword: '',
+      newUsrRole: 'COLABORADOR',
+      newUsrAreaId: '',
+      newUsrEquipoId: '',
+      newUsrSuccess: '',
+      newUsrError: ''
+    });
   }
 
   handleDeleteUsuario = async (username) => {
@@ -804,24 +887,24 @@ export class Dashboard extends Component {
             <div className="row row-sm">
               {/* Form to create a new user */}
               <div className="col-lg-4">
-                <div className="card" style={{ border: 'none', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', padding: '20px' }}>
-                  <h6 style={{ fontSize: '16px', fontWeight: '700', color: '#1c273c', marginBottom: '15px' }}>
-                    👤 Crear Nuevo Colaborador
+                <div className="card" style={{ border: 'none', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', padding: '25px 20px' }}>
+                  <h6 style={{ fontSize: '16px', fontWeight: '700', color: '#1c273c', marginBottom: '20px' }}>
+                    {this.state.editingUserUsername ? `✏️ Editar Colaborador @${this.state.editingUserUsername}` : '👤 Crear Nuevo Colaborador'}
                   </h6>
                   
                   {this.state.newUsrSuccess && (
-                    <div className="alert alert-success" style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '6px' }}>
+                    <div className="alert alert-success" style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '6px', marginBottom: '15px' }}>
                       {this.state.newUsrSuccess}
                     </div>
                   )}
                   {this.state.newUsrError && (
-                    <div className="alert alert-danger" style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '6px' }}>
+                    <div className="alert alert-danger" style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '6px', marginBottom: '15px' }}>
                       {this.state.newUsrError}
                     </div>
                   )}
 
                   <form onSubmit={this.handleCreateUsuario}>
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: '15px' }}>
                       <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Nombre Completo</label>
                       <input 
                         type="text" 
@@ -835,7 +918,7 @@ export class Dashboard extends Component {
                       />
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: '15px' }}>
                       <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Nombre de Usuario (Login)</label>
                       <input 
                         type="text" 
@@ -846,10 +929,11 @@ export class Dashboard extends Component {
                         placeholder="Ej: carlos.ventas"
                         style={{ borderRadius: '6px', fontSize: '13px' }}
                         required
+                        disabled={this.state.editingUserUsername !== null}
                       />
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: '15px' }}>
                       <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Contraseña</label>
                       <input 
                         type="password" 
@@ -857,13 +941,13 @@ export class Dashboard extends Component {
                         value={this.state.newUsrPassword}
                         onChange={this.handleInputChange}
                         className="form-control" 
-                        placeholder="Contraseña"
+                        placeholder={this.state.editingUserUsername ? "Dejar vacío para mantener" : "Contraseña"}
                         style={{ borderRadius: '6px', fontSize: '13px' }}
-                        required
+                        required={this.state.editingUserUsername === null}
                       />
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: '15px' }}>
                       <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Rol del Sistema</label>
                       <select 
                         name="newUsrRole"
@@ -883,7 +967,7 @@ export class Dashboard extends Component {
                     {/* Optional Area & Team selection (only relevant if role is COLABORADOR or JEFE_AREA) */}
                     {['COLABORADOR', 'JEFE_AREA'].includes(this.state.newUsrRole) && (
                       <>
-                        <div className="form-group" style={{ marginBottom: '12px' }}>
+                        <div className="form-group" style={{ marginBottom: '15px' }}>
                           <label style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Área Asignada</label>
                           <select 
                             name="newUsrAreaId"
@@ -925,8 +1009,19 @@ export class Dashboard extends Component {
                       className="btn btn-az-primary btn-block"
                       style={{ borderRadius: '6px', padding: '10px', fontWeight: '600', backgroundColor: '#5b47fb', borderColor: '#5b47fb' }}
                     >
-                      {this.state.newUsrSubmitLoading ? 'Guardando...' : 'Crear Cuenta'}
+                      {this.state.newUsrSubmitLoading ? 'Guardando...' : (this.state.editingUserUsername ? '✏️ Guardar Cambios' : 'Crear Cuenta')}
                     </button>
+
+                    {this.state.editingUserUsername && (
+                      <button 
+                        type="button" 
+                        onClick={this.handleCancelEditUsuario}
+                        className="btn btn-outline-light btn-block"
+                        style={{ borderRadius: '6px', padding: '10px', fontWeight: '600', marginTop: '10px', border: '1px solid #cdd4e0', color: '#495057' }}
+                      >
+                        Cancelar Edición
+                      </button>
+                    )}
                   </form>
                 </div>
               </div>
@@ -952,11 +1047,11 @@ export class Dashboard extends Component {
                       <table className="table" style={{ verticalAlign: 'middle' }}>
                         <thead>
                           <tr>
-                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase' }}>Nombre Completo</th>
-                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase' }}>Usuario</th>
-                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase' }}>Rol</th>
-                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase' }}>Área/Equipo</th>
-                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center' }}>Acciones</th>
+                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', padding: '12px 16px' }}>Nombre Completo</th>
+                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', padding: '12px 16px' }}>Usuario</th>
+                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', padding: '12px 16px' }}>Rol</th>
+                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', padding: '12px 16px' }}>Área/Equipo</th>
+                            <th style={{ color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', textAlign: 'center', padding: '12px 16px' }}>Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -965,26 +1060,35 @@ export class Dashboard extends Component {
                             const userEquipo = equipos.find(eq => eq.id === u.equipoId);
                             return (
                               <tr key={u.username}>
-                                <td style={{ fontWeight: '600', color: '#1e293b' }}>{u.nombreCompleto}</td>
-                                <td style={{ color: '#64748b' }}>@{u.username}</td>
-                                <td>
+                                <td style={{ fontWeight: '600', color: '#1e293b', padding: '16px 12px' }}>{u.nombreCompleto}</td>
+                                <td style={{ color: '#64748b', padding: '16px 12px' }}>@{u.username}</td>
+                                <td style={{ padding: '16px 12px' }}>
                                   <span className="badge" style={{ fontSize: '9px', fontWeight: '700', padding: '3px 8px', borderRadius: '4px', backgroundColor: u.role === 'ADMIN' ? '#fef2f2' : u.role === 'GERENTE' ? '#eff6ff' : u.role === 'JEFE_AREA' ? '#fdf2f8' : '#f8fafc', color: u.role === 'ADMIN' ? '#dc2626' : u.role === 'GERENTE' ? '#2563eb' : u.role === 'JEFE_AREA' ? '#db2777' : '#475569' }}>
                                     {u.role}
                                   </span>
                                 </td>
-                                <td style={{ fontSize: '12px' }}>
+                                <td style={{ fontSize: '12px', padding: '16px 12px' }}>
                                   {userArea ? userArea.nombre : 'Global'}
                                   {userEquipo ? ` / ${userEquipo.nombre}` : ''}
                                 </td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <button 
-                                    onClick={() => this.handleDeleteUsuario(u.username)}
-                                    disabled={u.username === 'admin'}
-                                    className="btn btn-outline-danger btn-xs"
-                                    style={{ padding: '2px 8px', fontSize: '11px', borderRadius: '4px' }}
-                                  >
-                                    🗑️ Borrar
-                                  </button>
+                                <td style={{ textAlign: 'center', padding: '16px 12px', whiteSpace: 'nowrap' }}>
+                                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                    <button 
+                                      onClick={() => this.handleEditUsuarioClick(u)}
+                                      className="btn btn-outline-primary btn-xs"
+                                      style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', border: '1px solid #5b47fb', color: '#5b47fb', backgroundColor: 'transparent' }}
+                                    >
+                                      ✏️ Editar
+                                    </button>
+                                    <button 
+                                      onClick={() => this.handleDeleteUsuario(u.username)}
+                                      disabled={u.username === 'admin'}
+                                      className="btn btn-outline-danger btn-xs"
+                                      style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px' }}
+                                    >
+                                      🗑️ Borrar
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
