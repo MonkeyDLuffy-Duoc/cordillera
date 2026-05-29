@@ -238,6 +238,28 @@ public class BffController {
         }
     }
 
+    @PutMapping("/usuarios/{username}")
+    public ResponseEntity<?> updateUsuario(@PathVariable String username, @RequestBody Map<String, Object> userRequest, HttpServletRequest request) {
+        String role = (String) request.getAttribute("role");
+        if (!"ADMIN".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede editar usuarios.");
+        }
+        try {
+            org.springframework.http.HttpEntity<Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(userRequest);
+            ResponseEntity<?> response = restTemplate.exchange(
+                "http://service-areas/api/usuarios/" + username,
+                org.springframework.http.HttpMethod.PUT,
+                entity,
+                Object.class
+            );
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al actualizar usuario: " + e.getMessage());
+        }
+    }
+
     @DeleteMapping("/usuarios/{username}")
     public ResponseEntity<?> deleteUsuario(@PathVariable String username, HttpServletRequest request) {
         String role = (String) request.getAttribute("role");
