@@ -1,6 +1,6 @@
 -- Seeding KPIs using H2 MERGE
 -- Columns: id, tipo_kpi, nombre, descripcion, unidad_medida
-MERGE INTO kpis (id, tipo_kpi, nombre, descripcion, unidad_medida) KEY(id) VALUES 
+REPLACE INTO kpis (id, tipo_kpi, nombre, descripcion, unidad_medida) VALUES 
 (1, 'FINANCIERO', 'Ventas Totales Mensuales', 'Ingresos totales por ventas en retail físico y e-commerce de Grupo Cordillera.', 'CLP'),
 (2, 'CUMPLIMIENTO', 'Tasa de Conversión de Ventas', 'Porcentaje de visitas en tienda que se convierten en compras efectivas.', '%'),
 (3, 'OPERACIONAL', 'Stock de Bodega Central', 'Nivel de existencias físicas disponibles en la bodega principal.', 'Unidades'),
@@ -10,7 +10,7 @@ MERGE INTO kpis (id, tipo_kpi, nombre, descripcion, unidad_medida) KEY(id) VALUE
 
 -- Seeding Mediciones (Generous historical data for Q1 and Q2 2026 to render rich charts)
 -- Columns: id, kpi_id, valor, fecha_registro, registrado_por
-MERGE INTO mediciones (id, kpi_id, valor, fecha_registro, registrado_por) KEY(id) VALUES 
+REPLACE INTO mediciones (id, kpi_id, valor, fecha_registro, registrado_por) VALUES 
 -- KPI 1: Ventas Totales Mensuales (Financiero)
 (1, 1, 15200000.0, '2026-01-15', 'admin'),
 (2, 1, 16800000.0, '2026-02-15', 'jefe.ventas'),

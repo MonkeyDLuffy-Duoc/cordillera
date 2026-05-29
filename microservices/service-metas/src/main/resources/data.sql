@@ -1,6 +1,6 @@
 -- Seeding Metas using H2 MERGE
 -- Columns: id, kpi_id, equipo_id, valor_objetivo, fecha_limite, estado
-MERGE INTO metas (id, kpi_id, equipo_id, valor_objetivo, fecha_limite, estado) KEY(id) VALUES 
+REPLACE INTO metas (id, kpi_id, equipo_id, valor_objetivo, fecha_limite, estado) VALUES 
 (1, 1, 1, 20000000.0, '2026-06-30', 'ACTIVA'), -- Goal: 20M CLP Sales for Ventas Norte
 (2, 2, 1, 3.0, '2026-06-30', 'ACTIVA'),        -- Goal: 3% Conversion for Ventas Norte
 (3, 1, 2, 18000000.0, '2026-06-30', 'ACTIVA'), -- Goal: 18M CLP Sales for Ventas Sur
