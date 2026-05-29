@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # --- BASES DE DATOS MYSQL (1 POR SERVICIO) ---
+  mysql-areas:
+    image: mysql:8.0
+    container_name: mysql-areas
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_DATABASE: areas_db
+    ports:
+      - "33061:3306"
+    volumes:
+      - areas_data:/var/lib/mysql
+    networks:
+      - cordillera-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mysql-kpis:
+    image: mysql:8.0
+    container_name: mysql-kpis
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_DATABASE: kpis_db
+    ports:
+      - "33062:3306"
+    volumes:
+      - kpis_data:/var/lib/mysql
+    networks:
+      - cordillera-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mysql-metas:
+    image: mysql:8.0
+    container_name: mysql-metas
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_DATABASE: metas_db
+    ports:
+      - "33063:3306"
+    volumes:
+      - metas_data:/var/lib/mysql
+    networks:
+      - cordillera-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- SERVIDORES DE INFRAESTRUCTURA ---
+  eureka-server:
+    build: ./infraestructura/eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - cordillera-net
+
+  admin-server:
+    build: ./infraestructura/admin-server
+    container_name: admin-server
+    ports:
+      - "8000:8000"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - cordillera-net
+
+  # --- MICROSERVICIOS DE NEGOCIO ---
+  service-areas:
+    build: ./microservices/service-areas
+    container_name: service-areas
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_HOST: mysql-areas
+      SPRING_DATASOURCE_PORT: 3306
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      mysql-areas:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - cordillera-net
+
+  service-kpis:
+    build: ./microservices/service-kpis
+    container_name: service-kpis
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_HOST: mysql-kpis
+      SPRING_DATASOURCE_PORT: 3306
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      mysql-kpis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - cordillera-net
+
+  service-metas:
+    build: ./microservices/service-metas
+    container_name: service-metas
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_HOST: mysql-metas
+      SPRING_DATASOURCE_PORT: 3306
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      mysql-metas:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - cordillera-net
+
+  # --- GATEWAY / BFF ---
+  bff-gateway:
+    build: ./bff-gateway
+    container_name: bff-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    networks:
+      - cordillera-net
+
+  # --- FRONTEND REACT ---
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - bff-gateway
+    networks:
+      - cordillera-net
+
+volumes:
+  areas_data:
+  kpis_data:
+  metas_data:
+
+networks:
+  cordillera-net:
+    driver: bridge

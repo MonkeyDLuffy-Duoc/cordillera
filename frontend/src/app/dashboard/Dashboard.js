@@ -478,8 +478,8 @@ export class Dashboard extends Component {
 
           {/* Admin Tabs System */}
           {role === 'ADMIN' && (
-            <div className="mg-b-25" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>
-              <ul className="nav nav-tabs" style={{ borderBottom: 'none', display: 'flex', gap: '10px' }}>
+            <div className="mg-b-25" style={{ borderBottom: '1px solid #f3f5f7', paddingBottom: '5px' }}>
+              <ul className="nav nav-tabs" style={{ backgroundColor: 'transparent', borderBottom: 'none', display: 'flex', gap: '10px' }}>
                 <li className="nav-item">
                   <button 
                     onClick={() => this.setState({ activeTab: 'dashboard' })}
