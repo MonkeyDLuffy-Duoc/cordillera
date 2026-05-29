@@ -62,7 +62,7 @@ export class Signin extends Component {
     return (
       <div>
         <div className="az-signin-wrapper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f5f8' }}>
-          <div className="az-card-signin" style={{ width: '450px', padding: '40px', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', backgroundColor: '#ffffff' }}>
+          <div className="az-card-signin" style={{ height: '100%', width: '450px', padding: '40px', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', backgroundColor: '#a7bbf1' }}>
             <h1 className="az-logo" style={{ textAlign: 'center', fontSize: '36px', color: '#5b47fb', marginBottom: '10px' }}>grupo<span>c</span>ordillera</h1>
             <div className="az-signin-header" style={{ marginTop: '20px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: '600', color: '#1c273c', marginBottom: '8px' }}>¡Bienvenido de nuevo!</h2>
