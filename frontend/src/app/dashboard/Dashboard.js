@@ -87,8 +87,8 @@ export class Dashboard extends Component {
     const token = localStorage.getItem('token');
 
     try {
-      // Calling the service-metas directly on port 8083
-      const response = await fetch('http://localhost:8083/api/metas', {
+      // Calling the BFF Gateway on port 8080 to proxy and validate
+      const response = await fetch('http://localhost:8080/api/bff/metas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
