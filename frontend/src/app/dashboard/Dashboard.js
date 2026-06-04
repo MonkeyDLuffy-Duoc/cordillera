@@ -13,6 +13,7 @@ export class Dashboard extends Component {
       kpis: [],
       metasReporte: [],
       medicionesHistoricas: [],
+      servicesStatus: null, // Track status of backend microservices
       selectedKpiId: 1, // Default selected KPI for the trend chart
       loading: true,
       error: '',
@@ -79,6 +80,7 @@ export class Dashboard extends Component {
           kpis: data.kpis || [],
           metasReporte: data.metasReporte || [],
           medicionesHistoricas: data.medicionesHistoricas || [],
+          servicesStatus: data.servicesStatus || null,
           loading: false,
           // Set default form selections
           newMetaKpiId: data.kpis.length > 0 ? data.kpis[0].id : '',
@@ -418,7 +420,7 @@ export class Dashboard extends Component {
 
   render() {
     const { 
-      loading, error, role, nombreCompleto, areas, equipos, kpis, metasReporte, selectedKpiId, activeTab 
+      loading, error, role, nombreCompleto, areas, equipos, kpis, metasReporte, selectedKpiId, activeTab, servicesStatus 
     } = this.state;
 
     if (loading) {
@@ -459,6 +461,25 @@ export class Dashboard extends Component {
     return (
       <div className="container p-md-0" style={{ marginTop: '30px', paddingBottom: '60px' }}>
         <div className="az-content-body">
+          {/* Degraded Services Warnings (Circuit Breaker status) */}
+          {servicesStatus && Object.values(servicesStatus).some(s => s.status === 'DEGRADADO') && (
+            <div className="alert alert-warning alert-dismissible fade show" role="alert" style={{ borderRadius: '8px', marginBottom: '25px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h6 className="alert-heading font-weight-bold m-0" style={{ fontSize: '15px' }}>⚠️ Alerta de Degradación de Infraestructura (Circuit Breaker Activo)</h6>
+              <ul className="m-0" style={{ paddingLeft: '20px', fontSize: '13px' }}>
+                {Object.entries(servicesStatus).map(([serviceName, info]) => (
+                  info.status === 'DEGRADADO' && (
+                    <li key={serviceName}>
+                      <strong>{serviceName}</strong>: {info.message}
+                    </li>
+                  )
+                ))}
+              </ul>
+              <button type="button" className="close" data-dismiss="alert" aria-label="Close" style={{ outline: 'none', border: 'none', background: 'none' }} onClick={() => this.setState({ servicesStatus: null })}>
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+          )}
+
           {/* Dashboard Header */}
           <div className="az-dashboard-one-title" style={{ borderBottom: 'none', marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
             <div>

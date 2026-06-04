@@ -20,6 +20,9 @@ public class BffController {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private com.grupocordillera.bff.service.BackendClientService backendClientService;
+
     @GetMapping("/dashboard")
     public ResponseEntity<?> getDashboard(HttpServletRequest request) {
         String username = (String) request.getAttribute("username");
@@ -30,36 +33,36 @@ public class BffController {
         log.info("BFF orquestando consolidado de Dashboard para @{} [Rol: {}, Área: {}, Equipo: {}]", 
                  username, role, areaId != null ? areaId : "Global", equipoId != null ? equipoId : "Global");
 
-        // 1. Inter-service calls with individual try-catches (Fault Tolerance / Isolation)
-        List<Map<String, Object>> allAreas = new ArrayList<>();
-        List<Map<String, Object>> allEquipos = new ArrayList<>();
-        try {
-            List<Map<String, Object>> areasData = restTemplate.getForObject("http://service-areas/api/areas", List.class);
-            List<Map<String, Object>> equiposData = restTemplate.getForObject("http://service-areas/api/equipos", List.class);
-            if (areasData != null) allAreas = areasData;
-            if (equiposData != null) allEquipos = equiposData;
-        } catch (Exception e) {
-            log.error("[ERR-BFF-501] Falla al consumir el microservicio de Estructura Organizativa (service-areas). Detalles: {}", e.getMessage());
-        }
+        // 1. Inter-service calls with Resilience4j Circuit Breakers
+        com.grupocordillera.bff.service.BackendClientService.ServiceResult areasResult = backendClientService.getAreas();
+        com.grupocordillera.bff.service.BackendClientService.ServiceResult equiposResult = backendClientService.getEquipos();
+        com.grupocordillera.bff.service.BackendClientService.ServiceResult kpisResult = backendClientService.getKpis();
+        com.grupocordillera.bff.service.BackendClientService.ServiceResult medicionesResult = backendClientService.getMediciones();
+        com.grupocordillera.bff.service.BackendClientService.ServiceResult metasResult = backendClientService.getMetas();
 
-        List<Map<String, Object>> allKpis = new ArrayList<>();
-        List<Map<String, Object>> allMediciones = new ArrayList<>();
-        try {
-            List<Map<String, Object>> kpisData = restTemplate.getForObject("http://service-kpis/api/kpis", List.class);
-            List<Map<String, Object>> medicionesData = restTemplate.getForObject("http://service-kpis/api/mediciones", List.class);
-            if (kpisData != null) allKpis = kpisData;
-            if (medicionesData != null) allMediciones = medicionesData;
-        } catch (Exception e) {
-            log.error("[ERR-BFF-503] Falla al consumir el microservicio de Gestión de KPIs (service-kpis). Detalles: {}", e.getMessage());
-        }
+        List<Map<String, Object>> allAreas = areasResult.getData();
+        List<Map<String, Object>> allEquipos = equiposResult.getData();
+        List<Map<String, Object>> allKpis = kpisResult.getData();
+        List<Map<String, Object>> allMediciones = medicionesResult.getData();
+        List<Map<String, Object>> allMetas = metasResult.getData();
 
-        List<Map<String, Object>> allMetas = new ArrayList<>();
-        try {
-            List<Map<String, Object>> metasData = restTemplate.getForObject("http://service-metas/api/metas", List.class);
-            if (metasData != null) allMetas = metasData;
-        } catch (Exception e) {
-            log.error("[ERR-BFF-502] Falla al consumir el microservicio de Metas Organizacionales (service-metas). Detalles: {}", e.getMessage());
-        }
+        // Track statuses to return in the JSON response
+        Map<String, Map<String, String>> servicesStatus = new HashMap<>();
+
+        Map<String, String> areasStatus = new HashMap<>();
+        areasStatus.put("status", areasResult.getStatus());
+        areasStatus.put("message", areasResult.getMessage());
+        servicesStatus.put("service-areas", areasStatus);
+
+        Map<String, String> kpisStatus = new HashMap<>();
+        kpisStatus.put("status", kpisResult.getStatus());
+        kpisStatus.put("message", kpisResult.getMessage());
+        servicesStatus.put("service-kpis", kpisStatus);
+
+        Map<String, String> metasStatus = new HashMap<>();
+        metasStatus.put("status", metasResult.getStatus());
+        metasStatus.put("message", metasResult.getMessage());
+        servicesStatus.put("service-metas", metasStatus);
 
         try {
             // 2. Perform role-based filtering (Security by design at BFF layer)
@@ -168,6 +171,7 @@ public class BffController {
             dashboard.put("kpis", allKpis);
             dashboard.put("metasReporte", dashboardMetas);
             dashboard.put("medicionesHistoricas", allMediciones);
+            dashboard.put("servicesStatus", servicesStatus);
 
             log.info("BFF consolidó con éxito el Dashboard para @{}.", username);
             return ResponseEntity.ok(dashboard);
@@ -273,9 +277,13 @@ public class BffController {
             return ResponseEntity.status(403).body("Acceso denegado: Solo el administrador puede gestionar usuarios.");
         }
         try {
-            List<?> usuarios = restTemplate.getForObject("http://service-areas/api/usuarios", List.class);
-            log.info("BFF obtuvo exitosamente la lista de usuarios. Total: {}", usuarios.size());
-            return ResponseEntity.ok(usuarios);
+            com.grupocordillera.bff.service.BackendClientService.ServiceResult result = backendClientService.getUsuarios();
+            if ("DEGRADADO".equals(result.getStatus())) {
+                log.warn("[BFF-WARN] Intento de listar usuarios pero el servicio service-areas está DEGRADADO.");
+                return ResponseEntity.status(503).body(result.getMessage());
+            }
+            log.info("BFF obtuvo exitosamente la lista de usuarios. Total: {}", result.getData().size());
+            return ResponseEntity.ok(result.getData());
         } catch (Exception e) {
             log.error("[ERR-BFF-501] Error en BFF al listar usuarios: {}", e.getMessage());
             return ResponseEntity.status(500).body("Error al obtener usuarios: " + e.getMessage());
