@@ -41,5 +41,5 @@
 .env.production.local
 
 # Temp raw template and context docs (keep repo lightweight)
-Template/
-contexto/
+/Template/
+/contexto/
