@@ -16,9 +16,10 @@ services:
       - cordillera-net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-u", "root"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   mysql-kpis:
     image: mysql:8.0
@@ -34,9 +35,10 @@ services:
       - cordillera-net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-u", "root"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   mysql-metas:
     image: mysql:8.0
@@ -52,9 +54,10 @@ services:
       - cordillera-net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-u", "root"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   # --- SERVIDORES DE INFRAESTRUCTURA ---
   eureka-server:
