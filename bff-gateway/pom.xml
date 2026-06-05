@@ -48,6 +48,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Eureka Client: Permite registrarse en el Service Registry para que aparezca en el Dashboard y Admin Server -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
         <!-- Loadbalancer: Habilita el balanceo de carga interno y @LoadBalanced en RestTemplateConfig -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
