@@ -1,12 +1,14 @@
+logging:
+  file:
+    name: logs/bff-gateway.log
+
 server:
-  # Puerto de escucha del BFF
   port: 8080
 
 spring:
   application:
     name: bff-gateway
 
-# Configuración del Cliente Eureka para auto-registro
 eureka:
   client:
     service-url:
@@ -14,29 +16,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# Configuración detallada del Circuit Breaker con Resilience4j
-resilience4j:
-  circuitbreaker:
-    instances:
-      kpiService:
-        # Tipo de ventana deslizante
-        slidingWindowType: COUNT_BASED
-        # Tamaño de la ventana deslizante
-        slidingWindowSize: 10
-        # Umbral de tasa de fallos: 50%
-        failureRateThreshold: 50
-        # Umbral de llamadas lentas: 75%
-        slowCallRateThreshold: 75
-        # Duración límite de una llamada lenta: 2 segundos
-        slowCallDurationThreshold: 2000
-        # Tiempo de espera en estado ABIERTO: 30 segundos
-        waitDurationInOpenState: 30000
-        # Cantidad de llamadas de prueba permitidas en estado SEMI-ABIERTO
-        permittedNumberOfCallsInHalfOpenState: 5
-        # Transición automática de abierto a semi-abierto
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-
-# Configuración de Actuator para exponer métricas completas en el Dashboard de Spring Boot Admin
 management:
   endpoints:
     web:
@@ -45,3 +24,26 @@ management:
   endpoint:
     health:
       show-details: always
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      areasService:
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+      kpisService:
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+      metasService:
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+

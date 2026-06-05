@@ -1,35 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
+<project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven.4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>com.grupocordillera</groupId>
         <artifactId>plataforma-kpi</artifactId>
         <version>1.0.0</version>
-        <relativePath>../pom.xml</relativePath> <!-- Hereda del POM padre del proyecto -->
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>bff-gateway</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>bff-gateway</name>
-    <description>Backend For Frontend (BFF) - Grupo Cordillera</description>
+    <name>BFF Gateway</name>
+    <description>Backend for Frontend / API Gateway para la plataforma de KPIs</description>
 
     <dependencies>
-        <!-- Servidor Web de Spring Boot (API REST Controller) -->
+        <!-- Web Starter -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Seguridad: Spring Security para JWT y control de endpoints -->
+        <!-- Spring Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- JWT (JSON Web Token): API e Implementación para autenticación en BFF -->
+        <!-- JWT Dependencies -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -48,42 +47,50 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Eureka Client: Permite registrarse en el Service Registry para que aparezca en el Dashboard y Admin Server -->
+        <!-- Eureka Client -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
-        <!-- Loadbalancer: Habilita el balanceo de carga interno y @LoadBalanced en RestTemplateConfig -->
+        <!-- Spring Cloud LoadBalancer -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
-        <!-- Resilience4j: Implementación oficial de Circuit Breaker para Spring Cloud y Spring Boot 3 -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
-        </dependency>
-
-        <!-- Actuator: Monitoreo y estados de salud del Circuit Breaker -->
+        <!-- Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Lombok para simplificación de código -->
+        <!-- Resilience4j Circuit Breaker -->
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
         </dependency>
 
-        <!-- Tests -->
+        <!-- Spring Boot AOP (Required for @CircuitBreaker annotations) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Test starter -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
