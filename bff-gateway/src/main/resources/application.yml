@@ -1,0 +1,50 @@
+server:
+  # Puerto de escucha del BFF
+  port: 8080
+
+spring:
+  application:
+    name: bff-gateway
+
+# Configuración detallada del Circuit Breaker con Resilience4j
+resilience4j:
+  circuitbreaker:
+    instances:
+      kpiService:
+        # 1. Tipo de ventana deslizante: COUNT_BASED (basado en cantidad de peticiones) o TIME_BASED.
+        # En COUNT_BASED, evaluará las últimas N llamadas para calcular el porcentaje de falla.
+        slidingWindowType: COUNT_BASED
+        
+        # 2. Tamaño de la ventana deslizante: Evaluamos las últimas 10 peticiones.
+        slidingWindowSize: 10
+        
+        # 3. Umbral de tasa de fallos: 50%. Si 5 o más llamadas de las últimas 10 fallan, el circuito se ABRE.
+        failureRateThreshold: 50
+        
+        # 4. Umbral de llamadas lentas: 75%. Si 7.5 o más llamadas demoran más del límite establecido, el circuito se ABRE.
+        slowCallRateThreshold: 75
+        
+        # 5. Duración límite de una llamada lenta: 2000 milisegundos (2 segundos).
+        slowCallDurationThreshold: 2000
+        
+        # 6. Tiempo de espera en estado ABIERTO: 30000 milisegundos (30 segundos).
+        # Durante este lapso, cualquier llamada al servicio fallará inmediatamente ejecutando el Fallback.
+        waitDurationInOpenState: 30000
+        
+        # 7. Cantidad de llamadas de prueba permitidas en estado SEMI-ABIERTO (Half-Open).
+        # Permite realizar 5 peticiones de testeo para ver si el servicio remoto ya se encuentra operativo.
+        permittedNumberOfCallsInHalfOpenState: 5
+        
+        # 8. Transición automática: Habilita el paso automático de estado ABIERTO a SEMI-ABIERTO
+        # una vez que transcurren los 30 segundos (waitDurationInOpenState).
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+# Configuración de Actuator para exponer el estado de salud del Circuit Breaker en la API
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
