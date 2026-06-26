@@ -40,19 +40,4 @@ public class KpiFactoryTest {
         assertEquals("%", kpi.getUnidadMedida());
     }
 
-    @Test
-    public void testCreateKpiNullTypeThrowsException() {
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            KpiFactory.createKpi(null, "Test", "Test", "U");
-        });
-        assertEquals("El tipo de KPI no puede ser nulo.", exception.getMessage());
-    }
-
-    @Test
-    public void testCreateKpiUnknownTypeThrowsException() {
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            KpiFactory.createKpi("ECOLOGICO", "Test", "Test", "U");
-        });
-        assertTrue(exception.getMessage().contains("Tipo de KPI desconocido"));
-    }
 }

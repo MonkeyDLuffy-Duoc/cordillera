@@ -1,5 +1,7 @@
 package com.grupocordillera.areas.repository;
 
+import com.grupocordillera.areas.model.Area;
+import com.grupocordillera.areas.model.Equipo;
 import com.grupocordillera.areas.model.Usuario;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +19,12 @@ public class UsuarioRepositoryIntegrationTest {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private AreaRepository areaRepository;
+
+    @Autowired
+    private EquipoRepository equipoRepository;
 
     @Test
     public void testSaveAndFindUser() {
@@ -72,5 +80,30 @@ public class UsuarioRepositoryIntegrationTest {
 
         List<Usuario> users = usuarioRepository.findAll();
         assertEquals(2, users.size());
+    }
+
+    @Test
+    public void testSaveAndFindArea() {
+        Area area = new Area("Tecnologia", "Area de desarrollo y TI");
+        areaRepository.save(area);
+
+        assertNotNull(area.getId());
+        Optional<Area> found = areaRepository.findById(area.getId());
+        assertTrue(found.isPresent());
+        assertEquals("Tecnologia", found.get().getNombre());
+        assertEquals("Area de desarrollo y TI", found.get().getDescripcion());
+    }
+
+    @Test
+    public void testSaveAndFindEquipo() {
+        Equipo equipo = new Equipo("Desarrollo Core", 1L, "jefe.tech");
+        equipoRepository.save(equipo);
+
+        assertNotNull(equipo.getId());
+        Optional<Equipo> found = equipoRepository.findById(equipo.getId());
+        assertTrue(found.isPresent());
+        assertEquals("Desarrollo Core", found.get().getNombre());
+        assertEquals(1L, found.get().getAreaId());
+        assertEquals("jefe.tech", found.get().getLiderId());
     }
 }
